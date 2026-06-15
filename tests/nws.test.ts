@@ -61,6 +61,16 @@ describe("createNwsClient.getTodaysForecast", () => {
     });
   });
 
+  it("maps a failure on the forecast hop to a 502 AppError", async () => {
+    // The points hop succeeds; the forecast hop then returns a 5xx.
+    const client = createNwsClient({
+      fetchFn: fakeFetch(json(POINTS_OK), json({}, 503)),
+    });
+    await expect(client.getTodaysForecast(1, 2)).rejects.toMatchObject({
+      statusCode: 502,
+    });
+  });
+
   it("maps a fetch timeout to a 504 AppError", async () => {
     const timeoutFetch = (async () => {
       const err = new Error("timed out");
