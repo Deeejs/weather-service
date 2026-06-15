@@ -5,11 +5,22 @@ import { AppError } from "./errors";
 import { getForecast } from "./forecast";
 import { createNwsClient, type NwsClient } from "./nws";
 
-// Query params arrive as strings, so coordinates are coerced to numbers and
-// bound-checked. z.coerce.number() already rejects non-numeric input (NaN).
+const coordinate = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1, "Required")
+    .refine((value) => Number.isFinite(Number(value)), {
+      message: "Expected number",
+    })
+    .transform(Number)
+    .pipe(z.number().min(min).max(max));
+
+// Query params arrive as strings, so coordinates are parsed explicitly and
+// bound-checked. Empty strings are rejected instead of being coerced to 0.
 const WeatherQuerySchema = z.object({
-  lat: z.coerce.number().min(-90).max(90),
-  lon: z.coerce.number().min(-180).max(180),
+  lat: coordinate(-90, 90),
+  lon: coordinate(-180, 180),
 });
 
 // Centralized error handler. Express 5 forwards async throws here automatically,

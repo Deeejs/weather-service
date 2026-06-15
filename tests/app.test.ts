@@ -33,6 +33,12 @@ describe("GET /forecast", () => {
     expect(res.body.error).toBeTruthy();
   });
 
+  it("returns 400 when coordinates are blank", async () => {
+    const res = await request(createApp(okClient)).get("/forecast?lat=&lon=");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeTruthy();
+  });
+
   it("surfaces an AppError from the client with its status code", async () => {
     const failing: NwsClient = {
       getTodaysForecast: async () => {
