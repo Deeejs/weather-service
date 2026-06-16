@@ -53,6 +53,11 @@ export function createApp(client: NwsClient = createNwsClient()): Express {
     res.json(await getForecast(client, lat, lon));
   });
 
+  // Unmatched routes: JSON 404 instead of Express's default HTML.
+  app.use((_req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+
   app.use(errorHandler);
   return app;
 }
