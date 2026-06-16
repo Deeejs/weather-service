@@ -12,10 +12,20 @@ const PointsResponseSchema = z.object({
   }),
 });
 
-const ForecastPeriodSchema = z.object({
-  temperature: z.number(),
-  shortForecast: z.string(),
-});
+// NWS tags every period with its unit. We classify against °F thresholds, so a
+// non-"F" unit is treated as an unexpected response (-> 502) rather than silently
+// mischaracterized. The unit is validated then dropped — downstream only needs
+// the temperature and short forecast.
+const ForecastPeriodSchema = z
+  .object({
+    temperature: z.number(),
+    temperatureUnit: z.literal("F"),
+    shortForecast: z.string(),
+  })
+  .transform(({ temperature, shortForecast }) => ({
+    temperature,
+    shortForecast,
+  }));
 
 const ForecastResponseSchema = z.object({
   properties: z.object({

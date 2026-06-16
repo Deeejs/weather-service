@@ -10,7 +10,9 @@ const POINTS_OK = {
 };
 const FORECAST_OK = {
   properties: {
-    periods: [{ temperature: 72, shortForecast: "Partly Cloudy" }],
+    periods: [
+      { temperature: 72, temperatureUnit: "F", shortForecast: "Partly Cloudy" },
+    ],
   },
 };
 
@@ -55,6 +57,24 @@ describe("createNwsClient.getTodaysForecast", () => {
   it("maps a malformed upstream body to a 502 AppError", async () => {
     const client = createNwsClient({
       fetchFn: fakeFetch(json({ properties: {} })),
+    });
+    await expect(client.getTodaysForecast(1, 2)).rejects.toMatchObject({
+      statusCode: 502,
+    });
+  });
+
+  it("maps an unexpected temperature unit to a 502 AppError", async () => {
+    // Our thresholds are °F, so a Celsius (or any non-"F") period is treated as
+    // an unexpected response rather than silently mischaracterized.
+    const celsius = {
+      properties: {
+        periods: [
+          { temperature: 22, temperatureUnit: "C", shortForecast: "Clear" },
+        ],
+      },
+    };
+    const client = createNwsClient({
+      fetchFn: fakeFetch(json(POINTS_OK), json(celsius)),
     });
     await expect(client.getTodaysForecast(1, 2)).rejects.toMatchObject({
       statusCode: 502,
