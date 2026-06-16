@@ -81,3 +81,68 @@ the cause — deliberately _not_ a blanket 500:
 | `502`  | NWS is unreachable or returned an unexpected/invalid response   |
 | `504`  | NWS request timed out                                           |
 | `500`  | Unexpected internal error                                       |
+
+## Design notes
+
+**On structure.** For a multi-endpoint service I'd group by feature so it stays
+maintainable as it grows — roughly:
+
+```
+src/
+  integrations/
+    nws/
+      client.ts
+      nws.schemas.ts
+  middleware/
+    errorHandler.ts
+  weather/
+    handler.ts
+    routes.ts
+    service.ts
+    temperature.ts
+    weather.schemas.ts
+  app.ts
+  config.ts
+  errors.ts
+  index.ts
+```
+
+With a single endpoint that scaffolding is more overhead than payoff, so I kept
+the layout flat but still split the things that change for different reasons:
+
+- **Layered, but flat.** The pure temperature rule (`temperature.ts`), the NWS
+  integration (`nws.ts`), the orchestration (`forecast.ts`), and the HTTP wiring
+  (`app.ts`) stay separate.
+- **Testable by design.** The NWS client is passed in rather than hardcoded, so
+  tests swap in a fake and run with no network calls. And the app is built
+  separately from the line that starts the server, so tests can hit every route
+  in memory — no real port to open.
+- **Validated boundaries.** Inbound params and outbound NWS responses are both
+  validated with `zod`, so an upstream shape change fails loudly as a `502`
+  rather than leaking `undefined` into the response.
+
+## Tests
+
+```bash
+npm test
+```
+
+Covers the temperature rule (boundaries), the orchestration and NWS client via
+injected fakes, and the HTTP layer end-to-end with `supertest`.
+
+## Shortcuts and assumptions
+
+Given the time box, the following were scoped out — most would change for a
+production deployment:
+
+- **US coordinates only.** NWS covers the US and territories; coordinates
+  outside coverage return a clean `404` rather than an error.
+- **"Today" = the first forecast period.** Depending on the time of day this may
+  be the daytime period or "Tonight"/"This Afternoon".
+- **No caching.** Each request makes two NWS calls; the `/points` lookup is
+  stable and could be cached.
+- **No retries / backoff** on transient NWS failures.
+- **No rate limiting.** The service doesn't throttle requests or back off on NWS
+  limits; caching `/points` would be the first step to reduce upstream load.
+- **Logging** uses `console` rather than a structured logger.
+- **Thresholds are hardcoded.** In production they'd likely be configurable.
